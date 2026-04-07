@@ -1,0 +1,111 @@
+# Domain C – CRM
+
+## Overview
+
+Domain C is the **Customer Relationship Management (CRM) domain** of this FinTech demo. It provides a unified platform for managing customer relationships, prospect pipelines, marketing campaigns, and customer service interactions across all FinTech products.
+
+The CRM is a **custom-built platform** (not a vendor SaaS), modelled against BIAN service domains for Customer Management, Prospect Management, and Campaign Management. It acts as the customer intelligence layer, aggregating data from Core Banking and Mortgage Lending to present a complete 360° customer view to bank staff.
+
+---
+
+## BIAN Alignment
+
+| System | BIAN Service Domain |
+|--------|---------------------|
+| Customer Relationship Management (CRM) | Customer Management, Prospect Management, Campaign Management |
+
+---
+
+## System: Customer Relationship Management (CRM)
+
+The CRM platform enables CRM agents and relationship managers to manage the full customer lifecycle — from initial lead capture through product cross-sell to long-term relationship management. It pulls live data from Core Banking and Mortgage Lending to enrich every customer interaction.
+
+### Containers
+
+| Container | Technology | Role |
+|-----------|-----------|------|
+| **CRM Portal** | React / TypeScript | Web application for CRM agents and relationship managers |
+| **CRM API** | Java / Spring Boot | REST API gateway orchestrating all CRM operations |
+| **Customer 360 Service** | Python / FastAPI | Aggregates account, mortgage, and interaction data into a unified profile |
+| **Campaign Engine** | Python / Celery | Marketing automation: creates, schedules, and tracks campaigns |
+| **Lead Management Service** | Java / Spring Boot | Manages prospect pipeline from lead capture to product hand-off |
+| **CRM Database** | PostgreSQL | Stores interactions, leads, campaign definitions, and notes |
+
+### Key Integrations
+
+**Into Core Banking (Domain A):**
+- Customer 360 Service → CBS: retrieves account balances and product holdings for the unified customer view.
+- Campaign Engine → Notification Service: sends targeted marketing communications (email/SMS via SendGrid).
+
+**Into Mortgage Lending (Domain B):**
+- Lead Management → Mortgage Origination System (MOS): submits pre-qualified mortgage leads as applications.
+- Customer 360 Service → MOS: retrieves mortgage application status for the customer timeline.
+- Customer 360 Service → Mortgage Lifecycle Management (MLM): retrieves active mortgage details.
+
+**From Mortgage Lending (Domain B) back to CRM:**
+- MOS → CRM API: retrieves the customer's CRM profile to pre-fill mortgage application data.
+
+---
+
+## Architecture Diagrams
+
+### System Landscape
+
+The landscape view shows the CRM system alongside all Core Banking and Mortgage Lending systems it interacts with.
+
+![](embed:CRMLandscape)
+
+---
+
+### CRM – System Context
+
+System context for the CRM platform, showing all external systems and domains it depends on.
+
+![](embed:CRMSystemContext)
+
+---
+
+### CRM – Containers
+
+Container-level detail for the CRM platform and its collaborators across Core Banking and Mortgage Lending.
+
+![](embed:CRMContainerView)
+
+---
+
+## Users
+
+| Actor | Role |
+|-------|------|
+| **CRM Agent** | Manages day-to-day customer interactions, handles leads, logs service requests |
+| **Relationship Manager** | Manages high-value customer relationships, monitors mortgage lead pipeline |
+| **Customer** | Self-service access: enquiry history, application tracking |
+
+---
+
+## Cross-Domain Dependencies
+
+Domain C is a **consumer** of both Domain A and Domain B:
+
+| CRM Container | Depends On | Purpose |
+|--------------|------------|---------|
+| Customer 360 Service | CBS (Core Account API) | Account balances, product holdings |
+| Campaign Engine | Notification Service | Marketing comms delivery |
+| Lead Management | MOS (Origination API) | Submit mortgage leads |
+| Customer 360 Service | MOS (Origination API) | Application status |
+| Customer 360 Service | MLM (Lifecycle API) | Active mortgage details |
+
+Domain B (MOS) also calls back into Domain C:
+
+| Lending System | Depends On | Purpose |
+|---------------|------------|---------|
+| MOS (Origination API) | CRM API | Customer profile pre-fill for applications |
+
+---
+
+## Key Design Decisions
+
+- **Custom-built CRM over vendor SaaS**: The CRM is purpose-built for the FinTech's product set, allowing deep integration with proprietary mortgage origination and lifecycle systems without third-party API constraints.
+- **Customer 360 as a dedicated service**: Rather than embedding cross-domain data fetching in the portal or API layer, a dedicated Customer 360 microservice aggregates data from CBS and lending systems, enabling caching, enrichment, and a single source of truth for customer profile rendering.
+- **Lead-to-loan pipeline**: The Lead Management service bridges the CRM and Mortgage Origination domains, enabling pre-qualified leads generated by relationship managers to be submitted directly into MOS as applications — reducing manual handoff and data re-entry.
+- **Campaign engine decoupled from delivery**: Marketing campaign logic is separated from the actual delivery mechanism (Notification Service / SendGrid), following BIAN's Party Notifications service domain boundary and enabling channel-agnostic campaign authoring.

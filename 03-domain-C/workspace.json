@@ -1,0 +1,2126 @@
+{
+  "configuration" : { },
+  "description" : "Customer Relationship Management domain: customer 360 view, lead-to-mortgage pipeline, campaign management. BIAN-aligned.",
+  "documentation" : {
+    "sections" : [ {
+      "content" : "# Domain C – CRM\n\n## Overview\n\nDomain C is the **Customer Relationship Management (CRM) domain** of this FinTech demo. It provides a unified platform for managing customer relationships, prospect pipelines, marketing campaigns, and customer service interactions across all FinTech products.\n\nThe CRM is a **custom-built platform** (not a vendor SaaS), modelled against BIAN service domains for Customer Management, Prospect Management, and Campaign Management. It acts as the customer intelligence layer, aggregating data from Core Banking and Mortgage Lending to present a complete 360° customer view to bank staff.\n\n---\n\n## BIAN Alignment\n\n| System | BIAN Service Domain |\n|--------|---------------------|\n| Customer Relationship Management (CRM) | Customer Management, Prospect Management, Campaign Management |\n\n---\n\n## System: Customer Relationship Management (CRM)\n\nThe CRM platform enables CRM agents and relationship managers to manage the full customer lifecycle — from initial lead capture through product cross-sell to long-term relationship management. It pulls live data from Core Banking and Mortgage Lending to enrich every customer interaction.\n\n### Containers\n\n| Container | Technology | Role |\n|-----------|-----------|------|\n| **CRM Portal** | React / TypeScript | Web application for CRM agents and relationship managers |\n| **CRM API** | Java / Spring Boot | REST API gateway orchestrating all CRM operations |\n| **Customer 360 Service** | Python / FastAPI | Aggregates account, mortgage, and interaction data into a unified profile |\n| **Campaign Engine** | Python / Celery | Marketing automation: creates, schedules, and tracks campaigns |\n| **Lead Management Service** | Java / Spring Boot | Manages prospect pipeline from lead capture to product hand-off |\n| **CRM Database** | PostgreSQL | Stores interactions, leads, campaign definitions, and notes |\n\n### Key Integrations\n\n**Into Core Banking (Domain A):**\n- Customer 360 Service → CBS: retrieves account balances and product holdings for the unified customer view.\n- Campaign Engine → Notification Service: sends targeted marketing communications (email/SMS via SendGrid).\n\n**Into Mortgage Lending (Domain B):**\n- Lead Management → Mortgage Origination System (MOS): submits pre-qualified mortgage leads as applications.\n- Customer 360 Service → MOS: retrieves mortgage application status for the customer timeline.\n- Customer 360 Service → Mortgage Lifecycle Management (MLM): retrieves active mortgage details.\n\n**From Mortgage Lending (Domain B) back to CRM:**\n- MOS → CRM API: retrieves the customer's CRM profile to pre-fill mortgage application data.\n\n---\n\n## Architecture Diagrams\n\n### System Landscape\n\nThe landscape view shows the CRM system alongside all Core Banking and Mortgage Lending systems it interacts with.\n\n![](embed:CRMLandscape)\n\n---\n\n### CRM – System Context\n\nSystem context for the CRM platform, showing all external systems and domains it depends on.\n\n![](embed:CRMSystemContext)\n\n---\n\n### CRM – Containers\n\nContainer-level detail for the CRM platform and its collaborators across Core Banking and Mortgage Lending.\n\n![](embed:CRMContainerView)\n\n---\n\n## Users\n\n| Actor | Role |\n|-------|------|\n| **CRM Agent** | Manages day-to-day customer interactions, handles leads, logs service requests |\n| **Relationship Manager** | Manages high-value customer relationships, monitors mortgage lead pipeline |\n| **Customer** | Self-service access: enquiry history, application tracking |\n\n---\n\n## Cross-Domain Dependencies\n\nDomain C is a **consumer** of both Domain A and Domain B:\n\n| CRM Container | Depends On | Purpose |\n|--------------|------------|---------|\n| Customer 360 Service | CBS (Core Account API) | Account balances, product holdings |\n| Campaign Engine | Notification Service | Marketing comms delivery |\n| Lead Management | MOS (Origination API) | Submit mortgage leads |\n| Customer 360 Service | MOS (Origination API) | Application status |\n| Customer 360 Service | MLM (Lifecycle API) | Active mortgage details |\n\nDomain B (MOS) also calls back into Domain C:\n\n| Lending System | Depends On | Purpose |\n|---------------|------------|---------|\n| MOS (Origination API) | CRM API | Customer profile pre-fill for applications |\n\n---\n\n## Key Design Decisions\n\n- **Custom-built CRM over vendor SaaS**: The CRM is purpose-built for the FinTech's product set, allowing deep integration with proprietary mortgage origination and lifecycle systems without third-party API constraints.\n- **Customer 360 as a dedicated service**: Rather than embedding cross-domain data fetching in the portal or API layer, a dedicated Customer 360 microservice aggregates data from CBS and lending systems, enabling caching, enrichment, and a single source of truth for customer profile rendering.\n- **Lead-to-loan pipeline**: The Lead Management service bridges the CRM and Mortgage Origination domains, enabling pre-qualified leads generated by relationship managers to be submitted directly into MOS as applications — reducing manual handoff and data re-entry.\n- **Campaign engine decoupled from delivery**: Marketing campaign logic is separated from the actual delivery mechanism (Notification Service / SendGrid), following BIAN's Party Notifications service domain boundary and enabling channel-agnostic campaign authoring.\n",
+      "filename" : "01-crm.md",
+      "format" : "Markdown",
+      "order" : 1,
+      "title" : ""
+    } ]
+  },
+  "id" : 3,
+  "lastModifiedDate" : "2026-04-07T02:59:03Z",
+  "model" : {
+    "people" : [ {
+      "description" : "A retail or mortgage customer using online banking and self-service portals.",
+      "id" : "1",
+      "name" : "Customer",
+      "properties" : {
+        "structurizr.dsl.identifier" : "userCustomer"
+      },
+      "relationships" : [ {
+        "description" : "Submits and monitors mortgage applications",
+        "destinationId" : "36",
+        "id" : "170",
+        "sourceId" : "1",
+        "tags" : "Relationship",
+        "technology" : "HTTPS"
+      }, {
+        "description" : "Submits and monitors mortgage applications",
+        "destinationId" : "35",
+        "id" : "171",
+        "linkedRelationshipId" : "170",
+        "sourceId" : "1",
+        "technology" : "HTTPS"
+      }, {
+        "description" : "Self-service enquiries and interaction history",
+        "destinationId" : "57",
+        "id" : "214",
+        "sourceId" : "1",
+        "tags" : "Relationship",
+        "technology" : "HTTPS"
+      }, {
+        "description" : "Self-service enquiries and interaction history",
+        "destinationId" : "56",
+        "id" : "215",
+        "linkedRelationshipId" : "214",
+        "sourceId" : "1",
+        "technology" : "HTTPS"
+      } ],
+      "tags" : "Element,Person,User,Customer"
+    }, {
+      "description" : "A bank employee operating backoffice and loan processing systems.",
+      "id" : "2",
+      "name" : "Backoffice User",
+      "properties" : {
+        "structurizr.dsl.identifier" : "userBackoffice"
+      },
+      "relationships" : [ {
+        "description" : "Manages customer accounts and performs backoffice operations",
+        "destinationId" : "11",
+        "id" : "89",
+        "sourceId" : "2",
+        "tags" : "Relationship"
+      }, {
+        "description" : "Reviews AML alerts and regulatory reports",
+        "destinationId" : "31",
+        "id" : "90",
+        "sourceId" : "2",
+        "tags" : "Relationship"
+      }, {
+        "description" : "Reviews and processes mortgage applications",
+        "destinationId" : "36",
+        "id" : "172",
+        "sourceId" : "2",
+        "tags" : "Relationship",
+        "technology" : "HTTPS"
+      }, {
+        "description" : "Reviews and processes mortgage applications",
+        "destinationId" : "35",
+        "id" : "173",
+        "linkedRelationshipId" : "172",
+        "sourceId" : "2",
+        "technology" : "HTTPS"
+      }, {
+        "description" : "Manages property collateral records and appraisals",
+        "destinationId" : "47",
+        "id" : "174",
+        "sourceId" : "2",
+        "tags" : "Relationship",
+        "technology" : "HTTPS"
+      }, {
+        "description" : "Manages property collateral records and appraisals",
+        "destinationId" : "46",
+        "id" : "175",
+        "linkedRelationshipId" : "174",
+        "sourceId" : "2",
+        "technology" : "HTTPS"
+      } ],
+      "tags" : "Element,Person,User,Backoffice User"
+    }, {
+      "description" : "Analyst responsible for credit risk assessment and portfolio monitoring.",
+      "id" : "3",
+      "name" : "Risk Analyst",
+      "properties" : {
+        "structurizr.dsl.identifier" : "userRiskAnalyst"
+      },
+      "relationships" : [ {
+        "description" : "Monitors portfolio credit risk and LTV exposure",
+        "destinationId" : "54",
+        "id" : "176",
+        "sourceId" : "3",
+        "tags" : "Relationship",
+        "technology" : "HTTPS"
+      }, {
+        "description" : "Monitors portfolio credit risk and LTV exposure",
+        "destinationId" : "51",
+        "id" : "177",
+        "linkedRelationshipId" : "176",
+        "sourceId" : "3",
+        "technology" : "HTTPS"
+      } ],
+      "tags" : "Element,Person,User,Risk Analyst"
+    }, {
+      "description" : "Bank staff managing customer relationships and financial product cross-selling.",
+      "id" : "4",
+      "name" : "Relationship Manager",
+      "properties" : {
+        "structurizr.dsl.identifier" : "userRelationshipManager"
+      },
+      "relationships" : [ {
+        "description" : "Manages customer relationships and mortgage lead pipeline",
+        "destinationId" : "57",
+        "id" : "212",
+        "sourceId" : "4",
+        "tags" : "Relationship",
+        "technology" : "HTTPS"
+      }, {
+        "description" : "Manages customer relationships and mortgage lead pipeline",
+        "destinationId" : "56",
+        "id" : "213",
+        "linkedRelationshipId" : "212",
+        "sourceId" : "4",
+        "technology" : "HTTPS"
+      } ],
+      "tags" : "Element,Person,User,Relationship Manager"
+    }, {
+      "description" : "Customer service agent using the CRM platform to manage leads and interactions.",
+      "id" : "5",
+      "name" : "CRM Agent",
+      "properties" : {
+        "structurizr.dsl.identifier" : "userCRMAgent"
+      },
+      "relationships" : [ {
+        "description" : "Manages customer interactions, leads and service requests",
+        "destinationId" : "57",
+        "id" : "210",
+        "sourceId" : "5",
+        "tags" : "Relationship",
+        "technology" : "HTTPS"
+      }, {
+        "description" : "Manages customer interactions, leads and service requests",
+        "destinationId" : "56",
+        "id" : "211",
+        "linkedRelationshipId" : "210",
+        "sourceId" : "5",
+        "technology" : "HTTPS"
+      } ],
+      "tags" : "Element,Person,User,CRM Agent"
+    } ],
+    "properties" : {
+      "structurizr.groupSeparator" : "/"
+    },
+    "softwareSystems" : [ {
+      "description" : "Consolidated credit bureau providing credit history reports and scoring.",
+      "documentation" : { },
+      "id" : "6",
+      "name" : "Credit Bureau",
+      "properties" : {
+        "structurizr.dsl.identifier" : "creditBureau"
+      },
+      "tags" : "Element,Software System,External,BIAN-CreditRisk"
+    }, {
+      "description" : "National property registry used for collateral lien registration and verification.",
+      "documentation" : { },
+      "id" : "7",
+      "name" : "Property Registry",
+      "properties" : {
+        "structurizr.dsl.identifier" : "propertyRegistry"
+      },
+      "tags" : "Element,Software System,External,BIAN-CollateralAssetAdministration"
+    }, {
+      "description" : "Mobile-based digital identity and strong authentication service.",
+      "documentation" : { },
+      "id" : "8",
+      "name" : "SmartID",
+      "properties" : {
+        "structurizr.dsl.identifier" : "smartID"
+      },
+      "tags" : "Element,Software System,External,BIAN-PartyAuthentication"
+    }, {
+      "description" : "Qualified electronic signature and digital signing service (e-signature.eu).",
+      "documentation" : { },
+      "id" : "9",
+      "name" : "e-signature.eu",
+      "properties" : {
+        "structurizr.dsl.identifier" : "eParaksts"
+      },
+      "tags" : "Element,Software System,External,BIAN-PartyAuthentication"
+    }, {
+      "description" : "Cloud-based email delivery and communication platform (SendGrid).",
+      "documentation" : { },
+      "id" : "10",
+      "name" : "SendGrid",
+      "properties" : {
+        "structurizr.dsl.identifier" : "infobip"
+      },
+      "tags" : "Element,Software System,External,BIAN-PartyNotifications"
+    }, {
+      "containers" : [ {
+        "description" : "RESTful API exposing account lifecycle operations: open, close, query balance, statement.",
+        "documentation" : { },
+        "id" : "12",
+        "name" : "Core Account API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "cbs.coreAccountAPI"
+        },
+        "relationships" : [ {
+          "description" : "Reads and writes account records",
+          "destinationId" : "13",
+          "id" : "63",
+          "sourceId" : "12",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Triggers GL posting on account events",
+          "destinationId" : "14",
+          "id" : "65",
+          "sourceId" : "12",
+          "tags" : "Relationship",
+          "technology" : "Internal/gRPC"
+        }, {
+          "description" : "Submits account transactions for AML screening",
+          "destinationId" : "32",
+          "id" : "76",
+          "sourceId" : "12",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Submits account transactions for AML screening",
+          "destinationId" : "31",
+          "id" : "77",
+          "linkedRelationshipId" : "76",
+          "sourceId" : "12",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,API",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "Primary datastore for customer account records and balances.",
+        "documentation" : { },
+        "id" : "13",
+        "name" : "Account Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "cbs.accountDB"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      }, {
+        "description" : "Double-entry accounting engine responsible for posting and reconciling all financial transactions.",
+        "documentation" : { },
+        "id" : "14",
+        "name" : "General Ledger Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "cbs.glService"
+        },
+        "relationships" : [ {
+          "description" : "Posts and reconciles general ledger entries",
+          "destinationId" : "13",
+          "id" : "64",
+          "sourceId" : "14",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Java / Spring Boot"
+      } ],
+      "description" : "Central banking platform managing customer accounts, deposits, loans ledger and general ledger.",
+      "documentation" : { },
+      "group" : "Core Banking Domain",
+      "id" : "11",
+      "name" : "Core Banking System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "cbs"
+      },
+      "relationships" : [ {
+        "description" : "Submits account transactions for AML screening",
+        "destinationId" : "32",
+        "id" : "78",
+        "linkedRelationshipId" : "76",
+        "sourceId" : "11",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Submits account transactions for AML screening",
+        "destinationId" : "31",
+        "id" : "79",
+        "linkedRelationshipId" : "76",
+        "sourceId" : "11",
+        "technology" : "HTTPS/REST"
+      } ],
+      "tags" : "Element,Software System,CoreBankingDomain,BIAN-AccountManagement,BIANCompliant"
+    }, {
+      "containers" : [ {
+        "description" : "Entry point for all inbound and outbound payment instructions; validates and authorises requests.",
+        "documentation" : { },
+        "id" : "16",
+        "name" : "Payment Gateway",
+        "properties" : {
+          "structurizr.dsl.identifier" : "paymentHub.paymentGateway"
+        },
+        "relationships" : [ {
+          "description" : "Forwards validated payment orders",
+          "destinationId" : "17",
+          "id" : "66",
+          "sourceId" : "16",
+          "tags" : "Relationship",
+          "technology" : "Internal/Kafka"
+        } ],
+        "tags" : "Element,Container,API",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "Orchestrates payment routing, clearing, settlement and exception handling.",
+        "documentation" : { },
+        "id" : "17",
+        "name" : "Payment Processor",
+        "properties" : {
+          "structurizr.dsl.identifier" : "paymentHub.paymentProcessor"
+        },
+        "relationships" : [ {
+          "description" : "Persists payment transactions and status updates",
+          "destinationId" : "18",
+          "id" : "67",
+          "sourceId" : "17",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Debits and credits customer accounts for payments",
+          "destinationId" : "12",
+          "id" : "68",
+          "sourceId" : "17",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Debits and credits customer accounts for payments",
+          "destinationId" : "11",
+          "id" : "69",
+          "linkedRelationshipId" : "68",
+          "sourceId" : "17",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Sends payment confirmation and receipt notification",
+          "destinationId" : "24",
+          "id" : "72",
+          "sourceId" : "17",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Sends payment confirmation and receipt notification",
+          "destinationId" : "23",
+          "id" : "73",
+          "linkedRelationshipId" : "72",
+          "sourceId" : "17",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "Persistent store for payment orders, transaction history and reconciliation records.",
+        "documentation" : { },
+        "id" : "18",
+        "name" : "Payment Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "paymentHub.paymentDB"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      } ],
+      "description" : "Centralised payment processing platform supporting SEPA Credit Transfer, SEPA Instant and SWIFT.",
+      "documentation" : { },
+      "group" : "Core Banking Domain",
+      "id" : "15",
+      "name" : "Payment Hub",
+      "properties" : {
+        "structurizr.dsl.identifier" : "paymentHub"
+      },
+      "relationships" : [ {
+        "description" : "Debits and credits customer accounts for payments",
+        "destinationId" : "12",
+        "id" : "70",
+        "linkedRelationshipId" : "68",
+        "sourceId" : "15",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Debits and credits customer accounts for payments",
+        "destinationId" : "11",
+        "id" : "71",
+        "linkedRelationshipId" : "68",
+        "sourceId" : "15",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Sends payment confirmation and receipt notification",
+        "destinationId" : "24",
+        "id" : "74",
+        "linkedRelationshipId" : "72",
+        "sourceId" : "15",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Sends payment confirmation and receipt notification",
+        "destinationId" : "23",
+        "id" : "75",
+        "linkedRelationshipId" : "72",
+        "sourceId" : "15",
+        "technology" : "HTTPS/REST"
+      } ],
+      "tags" : "Element,Software System,CoreBankingDomain,BIAN-PaymentOrder,BIANCompliant"
+    }, {
+      "containers" : [ {
+        "description" : "REST API for document upload, retrieval, metadata management and lifecycle control.",
+        "documentation" : { },
+        "id" : "20",
+        "name" : "Document API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "dms.documentAPI"
+        },
+        "relationships" : [ {
+          "description" : "Stores and retrieves encrypted document files",
+          "destinationId" : "21",
+          "id" : "82",
+          "sourceId" : "20",
+          "tags" : "Relationship",
+          "technology" : "S3 API"
+        }, {
+          "description" : "Indexes document metadata for search",
+          "destinationId" : "22",
+          "id" : "83",
+          "sourceId" : "20",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,API",
+        "technology" : "Node.js / Express"
+      }, {
+        "description" : "Encrypted object storage for all document files (PDFs, images, contracts).",
+        "documentation" : { },
+        "id" : "21",
+        "name" : "Document Store",
+        "properties" : {
+          "structurizr.dsl.identifier" : "dms.documentStore"
+        },
+        "tags" : "Element,Container,Storage",
+        "technology" : "S3-compatible Object Storage"
+      }, {
+        "description" : "Full-text search and document classification engine for fast document discovery.",
+        "documentation" : { },
+        "id" : "22",
+        "name" : "Indexing Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "dms.indexingService"
+        },
+        "tags" : "Element,Container,Service",
+        "technology" : "Elasticsearch"
+      } ],
+      "description" : "Centralised document storage, versioning, indexing and retrieval for all banking documents.",
+      "documentation" : { },
+      "group" : "Core Banking Domain",
+      "id" : "19",
+      "name" : "Document Management System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "dms"
+      },
+      "tags" : "Element,Software System,CoreBankingDomain,BIAN-DocumentServices,BIANCompliant"
+    }, {
+      "containers" : [ {
+        "description" : "REST API for submitting notification requests and managing delivery preferences.",
+        "documentation" : { },
+        "id" : "24",
+        "name" : "Notification API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "notificationService.notifAPI"
+        },
+        "tags" : "Element,Container,API",
+        "technology" : "Python / FastAPI"
+      }, {
+        "description" : "Routes notifications to the appropriate channel (email, SMS, push) via external gateways.",
+        "documentation" : { },
+        "id" : "25",
+        "name" : "Dispatcher",
+        "properties" : {
+          "structurizr.dsl.identifier" : "notificationService.notifDispatcher"
+        },
+        "relationships" : [ {
+          "description" : "Delivers SMS, email and push notifications via gateway",
+          "destinationId" : "10",
+          "id" : "80",
+          "sourceId" : "25",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Python / Celery"
+      }, {
+        "description" : "Stores notification templates, delivery logs and user channel preferences.",
+        "documentation" : { },
+        "id" : "26",
+        "name" : "Notification Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "notificationService.notifDB"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      } ],
+      "description" : "Omni-channel notification platform delivering transactional and alert messages to customers and staff.",
+      "documentation" : { },
+      "group" : "Core Banking Domain",
+      "id" : "23",
+      "name" : "Notification Service",
+      "properties" : {
+        "structurizr.dsl.identifier" : "notificationService"
+      },
+      "relationships" : [ {
+        "description" : "Delivers SMS, email and push notifications via gateway",
+        "destinationId" : "10",
+        "id" : "81",
+        "linkedRelationshipId" : "80",
+        "sourceId" : "23",
+        "technology" : "HTTPS/REST"
+      } ],
+      "tags" : "Element,Software System,CoreBankingDomain,BIAN-PartyNotifications,BIANCompliant"
+    }, {
+      "containers" : [ {
+        "description" : "REST API for initiating and querying identity verification and KYC workflows.",
+        "documentation" : { },
+        "id" : "28",
+        "name" : "Identity API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "identityService.identityAPI"
+        },
+        "tags" : "Element,Container,API",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "Orchestrates identity checks via SmartID, e-signature.eu and biometric verification providers.",
+        "documentation" : { },
+        "id" : "29",
+        "name" : "KYC Engine",
+        "properties" : {
+          "structurizr.dsl.identifier" : "identityService.kycEngine"
+        },
+        "relationships" : [ {
+          "description" : "Requests mobile identity authentication",
+          "destinationId" : "8",
+          "id" : "84",
+          "sourceId" : "29",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Requests qualified electronic signature",
+          "destinationId" : "9",
+          "id" : "86",
+          "sourceId" : "29",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Persists KYC results and audit trail",
+          "destinationId" : "30",
+          "id" : "88",
+          "sourceId" : "29",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "Stores identity verification results, KYC status and audit trail.",
+        "documentation" : { },
+        "id" : "30",
+        "name" : "Identity Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "identityService.identityDB"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      } ],
+      "description" : "Customer identity verification, KYC orchestration and strong authentication hub.",
+      "documentation" : { },
+      "group" : "Core Banking Domain",
+      "id" : "27",
+      "name" : "Identity Service",
+      "properties" : {
+        "structurizr.dsl.identifier" : "identityService"
+      },
+      "relationships" : [ {
+        "description" : "Requests mobile identity authentication",
+        "destinationId" : "8",
+        "id" : "85",
+        "linkedRelationshipId" : "84",
+        "sourceId" : "27",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Requests qualified electronic signature",
+        "destinationId" : "9",
+        "id" : "87",
+        "linkedRelationshipId" : "86",
+        "sourceId" : "27",
+        "technology" : "HTTPS/REST"
+      } ],
+      "tags" : "Element,Software System,CoreBankingDomain,BIAN-PartyAuthentication,BIANCompliant"
+    }, {
+      "containers" : [ {
+        "description" : "Real-time anti-money laundering screening applied to all financial transactions.",
+        "documentation" : { },
+        "id" : "32",
+        "name" : "AML Engine",
+        "properties" : {
+          "structurizr.dsl.identifier" : "complianceService.amlEngine"
+        },
+        "tags" : "Element,Container,Service",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "Generates and submits regulatory reports (STR, CTR) to relevant authorities.",
+        "documentation" : { },
+        "id" : "33",
+        "name" : "Reporting API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "complianceService.reportingAPI"
+        },
+        "tags" : "Element,Container,API",
+        "technology" : "Python / FastAPI"
+      }, {
+        "description" : "Stores AML alerts, investigation cases and regulatory submission records.",
+        "documentation" : { },
+        "id" : "34",
+        "name" : "Compliance Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "complianceService.complianceDB"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      } ],
+      "description" : "AML transaction screening, sanctions checking and regulatory reporting.",
+      "documentation" : { },
+      "group" : "Core Banking Domain",
+      "id" : "31",
+      "name" : "Compliance Service",
+      "properties" : {
+        "structurizr.dsl.identifier" : "complianceService"
+      },
+      "tags" : "Element,Software System,CoreBankingDomain,BIAN-RegulatoryCompliance,BIANCompliant"
+    }, {
+      "containers" : [ {
+        "description" : "Customer-facing web application for submitting and tracking mortgage applications.",
+        "documentation" : { },
+        "id" : "36",
+        "name" : "Mortgage Portal",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mos.mosPortal"
+        },
+        "relationships" : [ {
+          "description" : "Submits and tracks mortgage applications",
+          "destinationId" : "37",
+          "id" : "91",
+          "sourceId" : "36",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,WebApp",
+        "technology" : "React / TypeScript"
+      }, {
+        "description" : "REST API orchestrating the mortgage application workflow and external integrations.",
+        "documentation" : { },
+        "id" : "37",
+        "name" : "Origination API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mos.mosAPI"
+        },
+        "relationships" : [ {
+          "description" : "Advances application through origination stages",
+          "destinationId" : "38",
+          "id" : "92",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "Internal/gRPC"
+        }, {
+          "description" : "Opens mortgage loan account on final approval",
+          "destinationId" : "12",
+          "id" : "96",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Opens mortgage loan account on final approval",
+          "destinationId" : "11",
+          "id" : "97",
+          "linkedRelationshipId" : "96",
+          "sourceId" : "37",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Initiates initial loan disbursement to borrower",
+          "destinationId" : "16",
+          "id" : "100",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Initiates initial loan disbursement to borrower",
+          "destinationId" : "15",
+          "id" : "101",
+          "linkedRelationshipId" : "100",
+          "sourceId" : "37",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Stores mortgage application documents and signed agreements",
+          "destinationId" : "20",
+          "id" : "104",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Stores mortgage application documents and signed agreements",
+          "destinationId" : "19",
+          "id" : "105",
+          "linkedRelationshipId" : "104",
+          "sourceId" : "37",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Sends application status notifications to applicant",
+          "destinationId" : "24",
+          "id" : "108",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Sends application status notifications to applicant",
+          "destinationId" : "23",
+          "id" : "109",
+          "linkedRelationshipId" : "108",
+          "sourceId" : "37",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Requests KYC verification for mortgage applicant",
+          "destinationId" : "28",
+          "id" : "112",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Requests KYC verification for mortgage applicant",
+          "destinationId" : "27",
+          "id" : "113",
+          "linkedRelationshipId" : "112",
+          "sourceId" : "37",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Submits applicant data for AML and sanctions screening",
+          "destinationId" : "32",
+          "id" : "116",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Submits applicant data for AML and sanctions screening",
+          "destinationId" : "31",
+          "id" : "117",
+          "linkedRelationshipId" : "116",
+          "sourceId" : "37",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Requests affordability and credit assessment",
+          "destinationId" : "52",
+          "id" : "120",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Requests affordability and credit assessment",
+          "destinationId" : "51",
+          "id" : "121",
+          "linkedRelationshipId" : "120",
+          "sourceId" : "37",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Registers subject property as loan collateral",
+          "destinationId" : "48",
+          "id" : "124",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Registers subject property as loan collateral",
+          "destinationId" : "46",
+          "id" : "125",
+          "linkedRelationshipId" : "124",
+          "sourceId" : "37",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Requests credit history report for affordability assessment",
+          "destinationId" : "6",
+          "id" : "128",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Retrieves customer CRM profile for application pre-fill",
+          "destinationId" : "58",
+          "id" : "206",
+          "sourceId" : "37",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Retrieves customer CRM profile for application pre-fill",
+          "destinationId" : "56",
+          "id" : "207",
+          "linkedRelationshipId" : "206",
+          "sourceId" : "37",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,API",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "BPM engine managing multi-stage origination process: intake → underwriting → approval → offer.",
+        "documentation" : { },
+        "id" : "38",
+        "name" : "Workflow Engine",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mos.mosWorkflow"
+        },
+        "relationships" : [ {
+          "description" : "Requests automated underwriting decision",
+          "destinationId" : "39",
+          "id" : "93",
+          "sourceId" : "38",
+          "tags" : "Relationship",
+          "technology" : "Internal/gRPC"
+        }, {
+          "description" : "Persists application state and stage transitions",
+          "destinationId" : "40",
+          "id" : "94",
+          "sourceId" : "38",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Camunda BPM"
+      }, {
+        "description" : "Automated underwriting rules engine applying affordability, LTV and policy checks.",
+        "documentation" : { },
+        "id" : "39",
+        "name" : "Decision Engine",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mos.mosDecisionEngine"
+        },
+        "relationships" : [ {
+          "description" : "Reads application data for policy evaluation",
+          "destinationId" : "40",
+          "id" : "95",
+          "sourceId" : "39",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Drools / Java"
+      }, {
+        "description" : "Stores mortgage applications, supporting documents references and decision audit trail.",
+        "documentation" : { },
+        "id" : "40",
+        "name" : "Origination Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mos.mosDB"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      } ],
+      "description" : "End-to-end mortgage application platform covering intake, document collection, underwriting workflow and approval/rejection decisioning.",
+      "documentation" : { },
+      "group" : "Mortgage Lending Domain",
+      "id" : "35",
+      "name" : "Mortgage Origination System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "mos"
+      },
+      "relationships" : [ {
+        "description" : "Opens mortgage loan account on final approval",
+        "destinationId" : "12",
+        "id" : "98",
+        "linkedRelationshipId" : "96",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Opens mortgage loan account on final approval",
+        "destinationId" : "11",
+        "id" : "99",
+        "linkedRelationshipId" : "96",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Initiates initial loan disbursement to borrower",
+        "destinationId" : "16",
+        "id" : "102",
+        "linkedRelationshipId" : "100",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Initiates initial loan disbursement to borrower",
+        "destinationId" : "15",
+        "id" : "103",
+        "linkedRelationshipId" : "100",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Stores mortgage application documents and signed agreements",
+        "destinationId" : "20",
+        "id" : "106",
+        "linkedRelationshipId" : "104",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Stores mortgage application documents and signed agreements",
+        "destinationId" : "19",
+        "id" : "107",
+        "linkedRelationshipId" : "104",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Sends application status notifications to applicant",
+        "destinationId" : "24",
+        "id" : "110",
+        "linkedRelationshipId" : "108",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Sends application status notifications to applicant",
+        "destinationId" : "23",
+        "id" : "111",
+        "linkedRelationshipId" : "108",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Requests KYC verification for mortgage applicant",
+        "destinationId" : "28",
+        "id" : "114",
+        "linkedRelationshipId" : "112",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Requests KYC verification for mortgage applicant",
+        "destinationId" : "27",
+        "id" : "115",
+        "linkedRelationshipId" : "112",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Submits applicant data for AML and sanctions screening",
+        "destinationId" : "32",
+        "id" : "118",
+        "linkedRelationshipId" : "116",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Submits applicant data for AML and sanctions screening",
+        "destinationId" : "31",
+        "id" : "119",
+        "linkedRelationshipId" : "116",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Requests affordability and credit assessment",
+        "destinationId" : "52",
+        "id" : "122",
+        "linkedRelationshipId" : "120",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Requests affordability and credit assessment",
+        "destinationId" : "51",
+        "id" : "123",
+        "linkedRelationshipId" : "120",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Registers subject property as loan collateral",
+        "destinationId" : "48",
+        "id" : "126",
+        "linkedRelationshipId" : "124",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Registers subject property as loan collateral",
+        "destinationId" : "46",
+        "id" : "127",
+        "linkedRelationshipId" : "124",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Requests credit history report for affordability assessment",
+        "destinationId" : "6",
+        "id" : "129",
+        "linkedRelationshipId" : "128",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Retrieves customer CRM profile for application pre-fill",
+        "destinationId" : "58",
+        "id" : "208",
+        "linkedRelationshipId" : "206",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Retrieves customer CRM profile for application pre-fill",
+        "destinationId" : "56",
+        "id" : "209",
+        "linkedRelationshipId" : "206",
+        "sourceId" : "35",
+        "technology" : "HTTPS/REST"
+      } ],
+      "tags" : "Element,Software System,LendingDomain,BIAN-Mortgage,BIAN-ConsumerLoan,BIANCompliant"
+    }, {
+      "containers" : [ {
+        "description" : "REST API exposing mortgage account operations: drawdown, repayment capture, balance enquiry, restructuring.",
+        "documentation" : { },
+        "id" : "42",
+        "name" : "Lifecycle API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mlm.mlmAPI"
+        },
+        "relationships" : [ {
+          "description" : "Queries and records lifecycle events",
+          "destinationId" : "45",
+          "id" : "131",
+          "sourceId" : "42",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Queries loan account balance and posts drawdown entries",
+          "destinationId" : "12",
+          "id" : "137",
+          "sourceId" : "42",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Queries loan account balance and posts drawdown entries",
+          "destinationId" : "11",
+          "id" : "138",
+          "linkedRelationshipId" : "137",
+          "sourceId" : "42",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Requests current LTV and triggers revaluation if breached",
+          "destinationId" : "48",
+          "id" : "145",
+          "sourceId" : "42",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Requests current LTV and triggers revaluation if breached",
+          "destinationId" : "46",
+          "id" : "146",
+          "linkedRelationshipId" : "145",
+          "sourceId" : "42",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Submits loan data for ongoing PD/LGD risk monitoring",
+          "destinationId" : "53",
+          "id" : "149",
+          "sourceId" : "42",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Submits loan data for ongoing PD/LGD risk monitoring",
+          "destinationId" : "51",
+          "id" : "150",
+          "linkedRelationshipId" : "149",
+          "sourceId" : "42",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,API",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "Automated engine generating repayment schedules, processing due payments and managing arrears.",
+        "documentation" : { },
+        "id" : "43",
+        "name" : "Repayment Scheduler",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mlm.mlmScheduler"
+        },
+        "relationships" : [ {
+          "description" : "Reads and updates repayment schedules and arrears records",
+          "destinationId" : "45",
+          "id" : "130",
+          "sourceId" : "43",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Triggers scheduled repayment debits",
+          "destinationId" : "16",
+          "id" : "133",
+          "sourceId" : "43",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Triggers scheduled repayment debits",
+          "destinationId" : "15",
+          "id" : "134",
+          "linkedRelationshipId" : "133",
+          "sourceId" : "43",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Sends repayment reminders and arrears alerts to borrower",
+          "destinationId" : "24",
+          "id" : "141",
+          "sourceId" : "43",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Sends repayment reminders and arrears alerts to borrower",
+          "destinationId" : "23",
+          "id" : "142",
+          "linkedRelationshipId" : "141",
+          "sourceId" : "43",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Java / Quartz Scheduler"
+      }, {
+        "description" : "Generates regulatory loan reports, IFRS 9 staging data and borrower statements.",
+        "documentation" : { },
+        "id" : "44",
+        "name" : "Reporting Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mlm.mlmReportingService"
+        },
+        "relationships" : [ {
+          "description" : "Reads loan data for reporting and IFRS 9 staging",
+          "destinationId" : "45",
+          "id" : "132",
+          "sourceId" : "44",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Python / FastAPI"
+      }, {
+        "description" : "Stores loan schedules, repayment history, arrears records and restructuring events.",
+        "documentation" : { },
+        "id" : "45",
+        "name" : "Lifecycle Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mlm.mlmDB"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      } ],
+      "description" : "Post-origination mortgage management system covering drawdown, repayment scheduling, arrears, restructuring, early settlement and maturity.",
+      "documentation" : { },
+      "group" : "Mortgage Lending Domain",
+      "id" : "41",
+      "name" : "Mortgage Lifecycle Management",
+      "properties" : {
+        "structurizr.dsl.identifier" : "mlm"
+      },
+      "relationships" : [ {
+        "description" : "Triggers scheduled repayment debits",
+        "destinationId" : "16",
+        "id" : "135",
+        "linkedRelationshipId" : "133",
+        "sourceId" : "41",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Triggers scheduled repayment debits",
+        "destinationId" : "15",
+        "id" : "136",
+        "linkedRelationshipId" : "133",
+        "sourceId" : "41",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Queries loan account balance and posts drawdown entries",
+        "destinationId" : "12",
+        "id" : "139",
+        "linkedRelationshipId" : "137",
+        "sourceId" : "41",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Queries loan account balance and posts drawdown entries",
+        "destinationId" : "11",
+        "id" : "140",
+        "linkedRelationshipId" : "137",
+        "sourceId" : "41",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Sends repayment reminders and arrears alerts to borrower",
+        "destinationId" : "24",
+        "id" : "143",
+        "linkedRelationshipId" : "141",
+        "sourceId" : "41",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Sends repayment reminders and arrears alerts to borrower",
+        "destinationId" : "23",
+        "id" : "144",
+        "linkedRelationshipId" : "141",
+        "sourceId" : "41",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Requests current LTV and triggers revaluation if breached",
+        "destinationId" : "48",
+        "id" : "147",
+        "linkedRelationshipId" : "145",
+        "sourceId" : "41",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Requests current LTV and triggers revaluation if breached",
+        "destinationId" : "46",
+        "id" : "148",
+        "linkedRelationshipId" : "145",
+        "sourceId" : "41",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Submits loan data for ongoing PD/LGD risk monitoring",
+        "destinationId" : "53",
+        "id" : "151",
+        "linkedRelationshipId" : "149",
+        "sourceId" : "41",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Submits loan data for ongoing PD/LGD risk monitoring",
+        "destinationId" : "51",
+        "id" : "152",
+        "linkedRelationshipId" : "149",
+        "sourceId" : "41",
+        "technology" : "HTTPS/REST"
+      } ],
+      "tags" : "Element,Software System,LendingDomain,BIAN-MortgageLoan,BIAN-Loan,BIANCompliant"
+    }, {
+      "containers" : [ {
+        "description" : "Backoffice web UI for managing property records, appraisal workflows and lien status.",
+        "documentation" : { },
+        "id" : "47",
+        "name" : "Collateral Portal",
+        "properties" : {
+          "structurizr.dsl.identifier" : "collateralMgmt.collateralPortal"
+        },
+        "relationships" : [ {
+          "description" : "Manages property records and valuation workflows",
+          "destinationId" : "48",
+          "id" : "153",
+          "sourceId" : "47",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,WebApp",
+        "technology" : "React / TypeScript"
+      }, {
+        "description" : "REST API for registering collateral, submitting valuation requests and querying LTV.",
+        "documentation" : { },
+        "id" : "48",
+        "name" : "Collateral API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "collateralMgmt.collateralAPI"
+        },
+        "relationships" : [ {
+          "description" : "Requests automated or manual property valuation",
+          "destinationId" : "49",
+          "id" : "154",
+          "sourceId" : "48",
+          "tags" : "Relationship",
+          "technology" : "Internal/gRPC"
+        }, {
+          "description" : "Stores and retrieves collateral and lien records",
+          "destinationId" : "50",
+          "id" : "155",
+          "sourceId" : "48",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Stores appraisal reports and property title documents",
+          "destinationId" : "20",
+          "id" : "157",
+          "sourceId" : "48",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Stores appraisal reports and property title documents",
+          "destinationId" : "19",
+          "id" : "158",
+          "linkedRelationshipId" : "157",
+          "sourceId" : "48",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Verifies property ownership and registers mortgage lien",
+          "destinationId" : "7",
+          "id" : "161",
+          "sourceId" : "48",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,API",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "Integrates with external property appraisers and maintains automated valuation model (AVM) results.",
+        "documentation" : { },
+        "id" : "49",
+        "name" : "Valuation Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "collateralMgmt.valuationService"
+        },
+        "relationships" : [ {
+          "description" : "Persists appraisal results and AVM outputs",
+          "destinationId" : "50",
+          "id" : "156",
+          "sourceId" : "49",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Python / FastAPI"
+      }, {
+        "description" : "Stores property records, appraisal reports, lien registrations and LTV history.",
+        "documentation" : { },
+        "id" : "50",
+        "name" : "Collateral Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "collateralMgmt.collateralDB"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      } ],
+      "description" : "Tracks property collateral registered against mortgage loans, manages appraisals, monitors LTV ratio and handles lien registration.",
+      "documentation" : { },
+      "group" : "Mortgage Lending Domain",
+      "id" : "46",
+      "name" : "Collateral Management System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "collateralMgmt"
+      },
+      "relationships" : [ {
+        "description" : "Stores appraisal reports and property title documents",
+        "destinationId" : "20",
+        "id" : "159",
+        "linkedRelationshipId" : "157",
+        "sourceId" : "46",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Stores appraisal reports and property title documents",
+        "destinationId" : "19",
+        "id" : "160",
+        "linkedRelationshipId" : "157",
+        "sourceId" : "46",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Verifies property ownership and registers mortgage lien",
+        "destinationId" : "7",
+        "id" : "162",
+        "linkedRelationshipId" : "161",
+        "sourceId" : "46",
+        "technology" : "HTTPS/REST"
+      } ],
+      "tags" : "Element,Software System,LendingDomain,BIAN-CollateralAssetAdministration,BIAN-CollateralValuation,BIANCompliant"
+    }, {
+      "containers" : [ {
+        "description" : "Performs affordability analysis, debt-service coverage ratio and credit scoring on mortgage applications.",
+        "documentation" : { },
+        "id" : "52",
+        "name" : "Credit Assessment Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mortgageRisk.creditAssessmentService"
+        },
+        "relationships" : [ {
+          "description" : "Stores credit scores and affordability results",
+          "destinationId" : "55",
+          "id" : "163",
+          "sourceId" : "52",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Retrieves account transaction history for affordability analysis",
+          "destinationId" : "12",
+          "id" : "166",
+          "sourceId" : "52",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Retrieves account transaction history for affordability analysis",
+          "destinationId" : "11",
+          "id" : "167",
+          "linkedRelationshipId" : "166",
+          "sourceId" : "52",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Python / FastAPI"
+      }, {
+        "description" : "Runs probabilistic default and loss-given-default models for portfolio-level risk monitoring.",
+        "documentation" : { },
+        "id" : "53",
+        "name" : "Risk Modelling Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mortgageRisk.riskModelingService"
+        },
+        "relationships" : [ {
+          "description" : "Persists PD/LGD model outputs and monitoring alerts",
+          "destinationId" : "55",
+          "id" : "164",
+          "sourceId" : "53",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Python / scikit-learn"
+      }, {
+        "description" : "Interactive dashboard for risk analysts to monitor portfolio exposure, LTV distribution and arrears trends.",
+        "documentation" : { },
+        "id" : "54",
+        "name" : "Risk Dashboard",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mortgageRisk.riskDashboard"
+        },
+        "relationships" : [ {
+          "description" : "Queries portfolio risk metrics for visualisation",
+          "destinationId" : "55",
+          "id" : "165",
+          "sourceId" : "54",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        } ],
+        "tags" : "Element,Container,WebApp",
+        "technology" : "React / TypeScript"
+      }, {
+        "description" : "Stores credit scores, risk model outputs, PD/LGD estimates and monitoring alerts.",
+        "documentation" : { },
+        "id" : "55",
+        "name" : "Risk Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "mortgageRisk.riskDB"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      } ],
+      "description" : "Credit risk assessment and ongoing portfolio risk monitoring platform for mortgage lending.",
+      "documentation" : { },
+      "group" : "Mortgage Lending Domain",
+      "id" : "51",
+      "name" : "Mortgage Risk & Credit Assessment",
+      "properties" : {
+        "structurizr.dsl.identifier" : "mortgageRisk"
+      },
+      "relationships" : [ {
+        "description" : "Retrieves account transaction history for affordability analysis",
+        "destinationId" : "12",
+        "id" : "168",
+        "linkedRelationshipId" : "166",
+        "sourceId" : "51",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Retrieves account transaction history for affordability analysis",
+        "destinationId" : "11",
+        "id" : "169",
+        "linkedRelationshipId" : "166",
+        "sourceId" : "51",
+        "technology" : "HTTPS/REST"
+      } ],
+      "tags" : "Element,Software System,LendingDomain,BIAN-CreditManagement,BIAN-CreditRisk,BIANCompliant"
+    }, {
+      "containers" : [ {
+        "description" : "Web application used by CRM agents and relationship managers to manage customer interactions, leads and service requests.",
+        "documentation" : { },
+        "id" : "57",
+        "name" : "CRM Portal",
+        "properties" : {
+          "structurizr.dsl.identifier" : "crm.crmPortal"
+        },
+        "relationships" : [ {
+          "description" : "Performs all CRM operations via REST",
+          "destinationId" : "58",
+          "id" : "178",
+          "sourceId" : "57",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,WebApp",
+        "technology" : "React / TypeScript"
+      }, {
+        "description" : "REST API gateway orchestrating all CRM business operations and external data fetching.",
+        "documentation" : { },
+        "id" : "58",
+        "name" : "CRM API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "crm.crmAPI"
+        },
+        "relationships" : [ {
+          "description" : "Requests aggregated customer profile",
+          "destinationId" : "59",
+          "id" : "179",
+          "sourceId" : "58",
+          "tags" : "Relationship",
+          "technology" : "Internal/gRPC"
+        }, {
+          "description" : "Creates and progresses prospect leads",
+          "destinationId" : "61",
+          "id" : "180",
+          "sourceId" : "58",
+          "tags" : "Relationship",
+          "technology" : "Internal/gRPC"
+        }, {
+          "description" : "Triggers and monitors marketing campaigns",
+          "destinationId" : "60",
+          "id" : "181",
+          "sourceId" : "58",
+          "tags" : "Relationship",
+          "technology" : "Internal/gRPC"
+        }, {
+          "description" : "Reads and writes CRM records",
+          "destinationId" : "62",
+          "id" : "182",
+          "sourceId" : "58",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        } ],
+        "tags" : "Element,Container,API",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "Aggregates customer profile data from Core Banking and Lending domains into a unified view.",
+        "documentation" : { },
+        "id" : "59",
+        "name" : "Customer 360 Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "crm.customer360Service"
+        },
+        "relationships" : [ {
+          "description" : "Caches and stores unified customer profile snapshots",
+          "destinationId" : "62",
+          "id" : "183",
+          "sourceId" : "59",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Retrieves account balances and product holdings for 360° view",
+          "destinationId" : "12",
+          "id" : "186",
+          "sourceId" : "59",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Retrieves account balances and product holdings for 360° view",
+          "destinationId" : "11",
+          "id" : "187",
+          "linkedRelationshipId" : "186",
+          "sourceId" : "59",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Retrieves mortgage application status for customer timeline",
+          "destinationId" : "37",
+          "id" : "198",
+          "sourceId" : "59",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Retrieves mortgage application status for customer timeline",
+          "destinationId" : "35",
+          "id" : "199",
+          "linkedRelationshipId" : "198",
+          "sourceId" : "59",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Retrieves active mortgage details for customer 360° view",
+          "destinationId" : "42",
+          "id" : "202",
+          "sourceId" : "59",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Retrieves active mortgage details for customer 360° view",
+          "destinationId" : "41",
+          "id" : "203",
+          "linkedRelationshipId" : "202",
+          "sourceId" : "59",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Python / FastAPI"
+      }, {
+        "description" : "Marketing automation engine for creating, scheduling and tracking customer-targeted campaigns across email and SMS.",
+        "documentation" : { },
+        "id" : "60",
+        "name" : "Campaign Engine",
+        "properties" : {
+          "structurizr.dsl.identifier" : "crm.campaignEngine"
+        },
+        "relationships" : [ {
+          "description" : "Stores campaign definitions, audience segments and delivery logs",
+          "destinationId" : "62",
+          "id" : "185",
+          "sourceId" : "60",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Sends targeted marketing communications to customers",
+          "destinationId" : "24",
+          "id" : "190",
+          "sourceId" : "60",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Sends targeted marketing communications to customers",
+          "destinationId" : "23",
+          "id" : "191",
+          "linkedRelationshipId" : "190",
+          "sourceId" : "60",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Python / Celery"
+      }, {
+        "description" : "Manages prospect pipelines from initial lead capture through qualification to product application hand-off.",
+        "documentation" : { },
+        "id" : "61",
+        "name" : "Lead Management Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "crm.leadManagement"
+        },
+        "relationships" : [ {
+          "description" : "Persists lead pipeline state and activity history",
+          "destinationId" : "62",
+          "id" : "184",
+          "sourceId" : "61",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Submits pre-qualified mortgage leads as applications",
+          "destinationId" : "37",
+          "id" : "194",
+          "sourceId" : "61",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/REST"
+        }, {
+          "description" : "Submits pre-qualified mortgage leads as applications",
+          "destinationId" : "35",
+          "id" : "195",
+          "linkedRelationshipId" : "194",
+          "sourceId" : "61",
+          "technology" : "HTTPS/REST"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Java / Spring Boot"
+      }, {
+        "description" : "Stores CRM records: customer interactions, leads, campaigns, service requests and notes.",
+        "documentation" : { },
+        "id" : "62",
+        "name" : "CRM Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "crm.crmDB"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      } ],
+      "description" : "Custom-built CRM platform providing a unified 360° customer view, lead management, marketing campaign automation and customer service tooling.",
+      "documentation" : { },
+      "group" : "CRM Domain",
+      "id" : "56",
+      "name" : "Customer Relationship Management",
+      "properties" : {
+        "structurizr.dsl.identifier" : "crm"
+      },
+      "relationships" : [ {
+        "description" : "Retrieves account balances and product holdings for 360° view",
+        "destinationId" : "12",
+        "id" : "188",
+        "linkedRelationshipId" : "186",
+        "sourceId" : "56",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Retrieves account balances and product holdings for 360° view",
+        "destinationId" : "11",
+        "id" : "189",
+        "linkedRelationshipId" : "186",
+        "sourceId" : "56",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Sends targeted marketing communications to customers",
+        "destinationId" : "24",
+        "id" : "192",
+        "linkedRelationshipId" : "190",
+        "sourceId" : "56",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Sends targeted marketing communications to customers",
+        "destinationId" : "23",
+        "id" : "193",
+        "linkedRelationshipId" : "190",
+        "sourceId" : "56",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Submits pre-qualified mortgage leads as applications",
+        "destinationId" : "37",
+        "id" : "196",
+        "linkedRelationshipId" : "194",
+        "sourceId" : "56",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Submits pre-qualified mortgage leads as applications",
+        "destinationId" : "35",
+        "id" : "197",
+        "linkedRelationshipId" : "194",
+        "sourceId" : "56",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Retrieves mortgage application status for customer timeline",
+        "destinationId" : "37",
+        "id" : "200",
+        "linkedRelationshipId" : "198",
+        "sourceId" : "56",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Retrieves mortgage application status for customer timeline",
+        "destinationId" : "35",
+        "id" : "201",
+        "linkedRelationshipId" : "198",
+        "sourceId" : "56",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Retrieves active mortgage details for customer 360° view",
+        "destinationId" : "42",
+        "id" : "204",
+        "linkedRelationshipId" : "202",
+        "sourceId" : "56",
+        "technology" : "HTTPS/REST"
+      }, {
+        "description" : "Retrieves active mortgage details for customer 360° view",
+        "destinationId" : "41",
+        "id" : "205",
+        "linkedRelationshipId" : "202",
+        "sourceId" : "56",
+        "technology" : "HTTPS/REST"
+      } ],
+      "tags" : "Element,Software System,CRMDomain,BIAN-CustomerManagement,BIAN-ProspectManagement,BIAN-CampaignManagement,BIANCompliant"
+    } ]
+  },
+  "name" : "Domain C – CRM",
+  "properties" : {
+    "structurizr.inspection.error" : "59",
+    "structurizr.inspection.info" : "0",
+    "structurizr.inspection.ignore" : "0",
+    "structurizr.inspection.warning" : "0"
+  },
+  "views" : {
+    "configuration" : {
+      "properties" : {
+        "structurizr.sort" : "created"
+      },
+      "styles" : {
+        "elements" : [ {
+          "shape" : "Hexagon",
+          "tag" : "API"
+        }, {
+          "background" : "#438dd5",
+          "tag" : "Container"
+        }, {
+          "shape" : "Cylinder",
+          "tag" : "Database"
+        }, {
+          "color" : "#ffffff",
+          "fontSize" : 22,
+          "tag" : "Element"
+        }, {
+          "background" : "#999999",
+          "tag" : "External"
+        }, {
+          "background" : "#08427b",
+          "shape" : "Person",
+          "tag" : "Person"
+        }, {
+          "shape" : "RoundedBox",
+          "tag" : "Service"
+        }, {
+          "background" : "#1168bd",
+          "tag" : "Software System"
+        }, {
+          "shape" : "Folder",
+          "tag" : "Storage"
+        }, {
+          "shape" : "WebBrowser",
+          "tag" : "WebApp"
+        } ],
+        "relationships" : [ {
+          "color" : "#666666",
+          "fontSize" : 18,
+          "tag" : "Relationship",
+          "thickness" : 2
+        } ]
+      },
+      "terminology" : { }
+    },
+    "containerViews" : [ {
+      "automaticLayout" : {
+        "edgeSeparation" : 50,
+        "nodeSeparation" : 150,
+        "rankDirection" : "TopBottom",
+        "rankSeparation" : 300,
+        "vertices" : true
+      },
+      "elements" : [ {
+        "id" : "12",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "13",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "14",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "24",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "25",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "26",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "36",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "37",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "38",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "39",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "40",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "42",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "43",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "44",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "45",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "57",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "58",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "59",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "60",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "61",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "62",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "externalSoftwareSystemBoundariesVisible" : false,
+      "key" : "CRMContainerView",
+      "name" : "Container View: Customer Relationship Management",
+      "order" : 3,
+      "relationships" : [ {
+        "id" : "108"
+      }, {
+        "id" : "130"
+      }, {
+        "id" : "131"
+      }, {
+        "id" : "132"
+      }, {
+        "id" : "137"
+      }, {
+        "id" : "141"
+      }, {
+        "id" : "178"
+      }, {
+        "id" : "179"
+      }, {
+        "id" : "180"
+      }, {
+        "id" : "181"
+      }, {
+        "id" : "182"
+      }, {
+        "id" : "183"
+      }, {
+        "id" : "184"
+      }, {
+        "id" : "185"
+      }, {
+        "id" : "186"
+      }, {
+        "id" : "190"
+      }, {
+        "id" : "194"
+      }, {
+        "id" : "198"
+      }, {
+        "id" : "202"
+      }, {
+        "id" : "206"
+      }, {
+        "id" : "63"
+      }, {
+        "id" : "64"
+      }, {
+        "id" : "65"
+      }, {
+        "id" : "91"
+      }, {
+        "id" : "92"
+      }, {
+        "id" : "93"
+      }, {
+        "id" : "94"
+      }, {
+        "id" : "95"
+      }, {
+        "id" : "96"
+      } ],
+      "softwareSystemId" : "56",
+      "title" : "02.1 Customer Relationship Management – Container View"
+    } ],
+    "systemContextViews" : [ {
+      "automaticLayout" : {
+        "edgeSeparation" : 50,
+        "nodeSeparation" : 200,
+        "rankDirection" : "TopBottom",
+        "rankSeparation" : 400,
+        "vertices" : true
+      },
+      "elements" : [ {
+        "id" : "11",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "23",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "35",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "41",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "56",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "enterpriseBoundaryVisible" : true,
+      "key" : "CRMSystemContext",
+      "name" : "System Context View: Customer Relationship Management",
+      "order" : 2,
+      "relationships" : [ {
+        "id" : "111"
+      }, {
+        "id" : "140"
+      }, {
+        "id" : "144"
+      }, {
+        "id" : "189"
+      }, {
+        "id" : "193"
+      }, {
+        "id" : "197"
+      }, {
+        "id" : "201"
+      }, {
+        "id" : "205"
+      }, {
+        "id" : "209"
+      }, {
+        "id" : "99"
+      } ],
+      "softwareSystemId" : "56",
+      "title" : "02. Customer Relationship Management – System Context"
+    } ],
+    "systemLandscapeViews" : [ {
+      "automaticLayout" : {
+        "edgeSeparation" : 50,
+        "nodeSeparation" : 200,
+        "rankDirection" : "TopBottom",
+        "rankSeparation" : 400,
+        "vertices" : true
+      },
+      "elements" : [ {
+        "id" : "11",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "15",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "19",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "23",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "27",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "31",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "35",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "41",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "46",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "51",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "56",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "enterpriseBoundaryVisible" : true,
+      "key" : "CRMLandscape",
+      "name" : "System Landscape View",
+      "order" : 1,
+      "relationships" : [ {
+        "id" : "103"
+      }, {
+        "id" : "107"
+      }, {
+        "id" : "111"
+      }, {
+        "id" : "115"
+      }, {
+        "id" : "119"
+      }, {
+        "id" : "123"
+      }, {
+        "id" : "127"
+      }, {
+        "id" : "136"
+      }, {
+        "id" : "140"
+      }, {
+        "id" : "144"
+      }, {
+        "id" : "148"
+      }, {
+        "id" : "152"
+      }, {
+        "id" : "160"
+      }, {
+        "id" : "169"
+      }, {
+        "id" : "189"
+      }, {
+        "id" : "193"
+      }, {
+        "id" : "197"
+      }, {
+        "id" : "201"
+      }, {
+        "id" : "205"
+      }, {
+        "id" : "209"
+      }, {
+        "id" : "71"
+      }, {
+        "id" : "75"
+      }, {
+        "id" : "79"
+      }, {
+        "id" : "99"
+      } ],
+      "title" : "01. CRM – System Landscape"
+    } ]
+  }
+}
